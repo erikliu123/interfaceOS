@@ -12,3 +12,8 @@ After you set up the environment, you can just make and run the run.bat (UNCOMME
 
 The .vscode directory gives an example about how to use GDB to debug the OS in Visual Studio Code with the Native Debug extension. You can just run the run.bat and setup a breakpoint. Then press "F5" to debug in vscode.
 
+NOTICE:
+Some functions and simple applications have been added. 12/22/2018
+* mknod
+* support device open, just as file by call function open(device,flags)
+* driver_car: using bluetooth control car
