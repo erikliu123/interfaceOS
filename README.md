@@ -14,6 +14,6 @@ The .vscode directory gives an example about how to use GDB to debug the OS in V
 
 NOTICE:
 Some functions and simple applications have been added. 12/22/2018
-* mknod
-* support device open, just as file by call function open(device,flags)
+* mknod, by creat syscall "sys_mknod" and combined with SFS
+* support device open, just as file by calling function open(device,flags)
 * driver_car: using bluetooth control car
