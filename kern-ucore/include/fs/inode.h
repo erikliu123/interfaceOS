@@ -7,7 +7,8 @@
 #include <sfs.h>
 #include <atomic.h>
 #include <assert.h>
-
+#include <error.h>
+typedef unsigned short umode_t;
 struct stat;
 struct iobuf;
 
@@ -40,11 +41,25 @@ struct inode {
 		inode_type_pipe_inode_info,
 		inode_type_sfs_inode_info,
 	} in_type;
+	
+	struct inode *dev_inode;
+	bool has_dev;
 	atomic_t ref_count;
 	atomic_t open_count;
 	struct fs *in_fs;
 	const struct inode_ops *in_ops;
 };
+#define MAX_DEVICES 10
+#define MAX_DEVICE_NAME 20
+
+struct dev_inode_mm{
+	struct inode node[MAX_DEVICES];
+	char name[MAX_DEVICES][MAX_DEVICE_NAME];
+	int index;
+};
+
+
+struct dev_inode_mm *inode_for_devices;
 
 #define __in_type(type)                                             inode_type_##type##_info
 
@@ -228,6 +243,8 @@ struct inode_ops {
 			   struct inode ** node_store);
 	int (*vop_lookup_parent) (struct inode * node, char *path,
 				  struct inode ** node_store, char **endp);
+	int (*vop_mknod)(struct inode *,const char *devname);//TODO dentry
+	//int (*mknod) (struct inode *,struct dirent *,umode_t,dev_t);//TODO dentry
 };
 
 int null_vop_pass(void);
@@ -247,7 +264,17 @@ void inode_check(struct inode *node, const char *opstr);
         assert(__node != NULL && __node->in_ops != NULL && __node->in_ops->vop_##sym != NULL);      \
         inode_check(__node, #sym);                                                                  \
         __node->in_ops->vop_##sym;                                                                  \
-     })
+     })\
+	
+#define __vop_op_2(node, sym)                                                                         \
+		({																								\
+			struct inode *__node = (node);																\
+			assert(__node != NULL);		\
+			assert(__node->in_ops != NULL);			\
+			assert( __node->in_ops->vop_##sym != NULL);		\
+			inode_check(__node, #sym);																	\
+			__node->in_ops->vop_##sym;																	\
+		 })\
 
 #define vop_open(node, open_flags)                                  (__vop_op(node, open)(node, open_flags))
 #define vop_close(node)                                             (__vop_op(node, close)(node))
@@ -271,7 +298,7 @@ void inode_check(struct inode *node, const char *opstr);
 #define vop_unlink(node, name)                                      (__vop_op(node, unlink)(node, name))
 #define vop_lookup(node, path, node_store)                          (__vop_op(node, lookup)(node, path, node_store))
 #define vop_lookup_parent(node, path, node_store, endp)             (__vop_op(node, lookup_parent)(node, path, node_store, endp))
-
+#define vop_mknod(node, devname)									(__vop_op_2(node, mknod)(node, devname))
 #define vop_fs(node)                                                ((node)->in_fs)
 #define vop_init(node, ops, fs)                                     inode_init(node, ops, fs)
 #define vop_kill(node)                                              inode_kill(node)

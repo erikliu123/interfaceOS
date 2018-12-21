@@ -20,7 +20,7 @@ static mem_ptr_t vga;
 static mem_ptr_t const vga = (mem_ptr_t)0xBA000000;
 #endif
 
-static char buf_mem[NR_ROW][NR_COL], actual_screen[NR_ROW][NR_COL],
+static char buf_mem[NR_ROW][NR_COL], actual_screen[NR_ROW][NR_COL], /* 300*400 */
 			*buf[NR_ROW];
 static int row, col;
 

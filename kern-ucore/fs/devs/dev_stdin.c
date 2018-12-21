@@ -46,14 +46,14 @@ static int dev_stdin_read(char *buf, size_t len)
 			if (ret >= len)
 				break;
 try_again:
-			if (p_rpos < p_wpos) {
+			if (p_rpos < p_wpos) {//不是环形的缓冲区？
 				char c = stdin_buffer[p_rpos % STDIN_BUFSIZE];
 				//FIXME
 				//cons_putc(c); commented by xiaohan.
 				*buf++ = c;
 				p_rpos++;
 				ret++;
-				if (p_rpos >= p_wpos)
+				if (p_rpos >= p_wpos)//溢出
 					break;
 			} else {
 				wait_t __wait, *wait = &__wait;

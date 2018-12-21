@@ -82,6 +82,10 @@ static inline void outw(uint32_t port, uint32_t data)
 //#define ISA_BASE        0xbfd00000
 //#define COM1            (ISA_BASE+0x3F8)//0x3F8
 #define COM1           0xb0400000
+//#define PWM_BASE        0xB0700000
+//#define DIR_BASE        0xB0800000
+
+
 #define COM1_IRQ        4
 
 #define TIMER0_IRQ       0

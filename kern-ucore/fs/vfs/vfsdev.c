@@ -29,11 +29,13 @@
  *
  * A filesystem can be associated with a device without having been
  * mounted if the device was created that way. 
- * Referencing devname, or the filesystem volume name, on a device
+ * 1.Referencing devname, or the filesystem volume name, on a device
  * with a filesystem mounted returns the root of the filesystem.
- * Referencing devname on a mountable device with no filesystem
- * returns -E_NA_DEV. Referencing devname on a device that is not
+ * 2.Referencing devname on a mountable device with no filesystem
+ * returns -E_NA_DEV. 
+ * 3.Referencing devname on a device that is not
  * mountable and has no filesystem, returns the device itself.
+ * 分类：FS,DEVICE&&~FS,其他
  */
 typedef struct {
 	const char *devname;
@@ -119,7 +121,7 @@ int vfs_get_root(const char *devname, struct inode **node_store)
 		{
 			list_entry_t *list = &vdev_list, *le = list;
 			while ((le = list_next(le)) != list) {
-				vfs_dev_t *vdev = le2vdev(le, vdev_link);
+				vfs_dev_t *vdev = le2vdev(le, vdev_link);//vdev_link是链表指针，通过找到它确定vfs_dev_t的位置
 				if (strcmp(devname, vdev->devname) == 0) {
 					struct inode *found = NULL;
 
@@ -229,7 +231,7 @@ vfs_do_add(const char *devname, struct inode *devnode, struct fs *fs,
 
 	ret = -E_EXISTS;
 	lock_vdev_list();
-	if (!check_devname_conflict(s_devname)) {
+	if (!check_devname_conflict(s_devname)) {//没有同名设备！
 		unlock_vdev_list();
 		goto failed_cleanup_vdev;
 	}
@@ -278,7 +280,7 @@ static int find_mount(const char *devname, vfs_dev_t ** vdev_store)
 	list_entry_t *list = &vdev_list, *le = list;
 	while ((le = list_next(le)) != list) {
 		vfs_dev_t *vdev = le2vdev(le, vdev_link);
-		if (vdev->mountable && strcmp(vdev->devname, devname) == 0) {
+		if (vdev->mountable && strcmp(vdev->devname, devname) == 0) {//必须是可mount的设备，且设备名相同
 			*vdev_store = vdev;
 			return 0;
 		}
@@ -309,7 +311,7 @@ vfs_mount(const char *devname,
 	struct device *dev = vop_info(vdev->devnode, device);
 	if ((ret = mountfunc(dev, &(vdev->fs))) == 0) {
 		assert(vdev->fs != NULL);
-		kprintf("\n\rvfs: mount %s.\n\r", vdev->devname);
+		kprintf("\n\rvfs: mount %s.\n\r", vdev->devname);//default disk0
 	}
 
 out:

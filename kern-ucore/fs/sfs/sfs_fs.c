@@ -83,7 +83,7 @@ static int sfs_sync(struct fs *fs)
  * The root inode is always found in block 1 (SFS_ROOT_LOCATION).
  */
 
-static struct inode *sfs_get_root(struct fs *fs)
+static struct inode *sfs_get_root(struct fs *fs)//inode->in_fs可以找到该结构体
 {
 	struct inode *node;
 	int ret;

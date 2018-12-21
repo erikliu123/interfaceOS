@@ -1,5 +1,5 @@
 #include <defs.h>
-#include <arch.h>
+#include <arch.h>/* serial */
 #include <stdio.h>
 #include <string.h>
 #include <picirq.h>
@@ -66,32 +66,7 @@ static bool serial_exists = 0;
 
 static void serial_init(void)
 {
-/*	volatile unsigned char *uart = (unsigned char *)COM1;
-	if (serial_exists)
-		return;
-	serial_exists = 1;
-#ifdef MACH_QEMU
-	// Turn off the FIFO
-	outb(COM1 + COM_FCR, 0);
-	// Set speed; requires DLAB latch
-	outb(COM1 + COM_LCR, COM_LCR_DLAB);
-	outb(COM1 + COM_DLL, (uint8_t) (115200 / 9600));
-	outb(COM1 + COM_DLM, 0);
 
-	// 8 data bits, 1 stop bit, parity off; turn off DLAB latch
-	outb(COM1 + COM_LCR, COM_LCR_WLEN8 & ~COM_LCR_DLAB);
-
-	// No modem controls
-	outb(COM1 + COM_MCR, 0);
-	// Enable rcv interrupts
-	outb(COM1 + COM_IER, COM_IER_RDI);
-#elif defined MACH_FPGA
-	//TODO
-#endif
-
-	pic_enable(COM1_IRQ);
-        pic_enable(KEYBOARD_IRQ);
-*/
     volatile unsigned char *uart = (unsigned char *)COM1;
     if (serial_exists)
         return;
@@ -119,8 +94,6 @@ static void serial_init(void)
     delay();*/
     outw(COM1 + COM_IER, COM_IER_RDI);
     delay();
-
-
     pic_enable(COM1_IRQ);
         //pic_enable(KEYBOARD_IRQ);
 }
@@ -156,14 +129,13 @@ static int serial_proc_data(void)
     delay();
     c = inw(COM1 + COM_RBR) & 0xFF;
     delay();
-
     if (c == 127) {
         c = '\b';
     }
     return c;
 }
 
-void serial_int_handler(void *opaque)
+void serial_int_handler(void *opaque)/*串口 中断处理器*/
 {//corrected by xiaohan: this is actually not serial interrupt handler!
  //This is in fact External Interrupt Controller's interrupt handler!
  //So, remember to read the EIC to know what interrupt is happening. But for simplicity,
@@ -240,7 +212,7 @@ void serial_intr(void)
 	}
 }
 
-/* cons_init - initializes the console devices */
+/* cons_init - initializes the console devices 控制台初始化*/
 void cons_init(void)
 {
 	serial_init();

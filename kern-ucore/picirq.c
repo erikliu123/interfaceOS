@@ -26,7 +26,7 @@ static bool did_init = 0;
 
 
 
-void xiaohandelay() {
+void xiaohandelay() { /*EPC 出错返回地址*/
 	volatile unsigned int j;
 
 	for (j = 0; j < (10000); j++) ;	// delay 
@@ -38,7 +38,7 @@ void pic_enable(unsigned int irq)
 	assert(irq < 8);
 	uint32_t sr = read_c0_status();
 	sr |= 1 << (irq + STATUSB_IP0);
-	sr  = sr | 0x0000fc00;//added by xiaohan. For debug and practical use. Enable all interrupt.
+	sr  = sr | 0x0000fc00;//15-10位都允许中断，added by xiaohan. For debug and practical use. Enable all interrupt.
 	write_c0_status(sr);
 }
 
@@ -72,7 +72,7 @@ void xilinx_intc_init()
 	xiaohandelay( );
 
 	/* Acknowledge any pending interrupts just in case. */
-	*WRITE_IO(INTC_BASE + INTC_IAR) = 0xffffffff;
+	*WRITE_IO(INTC_BASE + INTC_IAR) = 0xffffffff; /*8001de20 bug*/
 	xiaohandelay( );
 
 	/* Turn on the Master Enable. */

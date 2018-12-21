@@ -42,7 +42,7 @@ int vfs_open(char *path, uint32_t open_flags, struct inode **node_store)
 		ret = vop_create(dir, name, excl, &node);
 		vop_ref_dec(dir);
 	} else {
-		ret = vfs_lookup(path, &node);
+		ret = vfs_lookup(path, &node);//找到inode，没找到返回E_NOENTRY。
 	}
 
 	if (ret != 0) {
@@ -102,6 +102,14 @@ int vfs_unlink(char *path)
 	ret = vop_unlink(dir, name);
 	vop_ref_dec(dir);
 	return ret;
+}
+int vfs_mknod(const char *devname){
+	int ret;
+	struct inode *node=NULL;
+	ret=vfs_get_root("disk0", &node);//DEVICE inode
+	ret = vop_mknod(node,devname);
+	return ret;
+
 }
 
 /* Does most of the work for rename(). */
@@ -199,6 +207,7 @@ int vfs_mkdir(char *path)
 	int ret;
 	char *name;
 	struct inode *dir;
+	//int (*vop_lookup) (struct inode * node, char *path, struct inode ** node_store);
 	if ((ret = vfs_lookup_parent(path, &dir, &name)) != 0) {
 		return ret;
 	}

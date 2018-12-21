@@ -128,6 +128,16 @@ static int dev_lookup(struct inode *node, char *path, struct inode **node_store)
 	return 0;
 }
 
+static int dev_make_sfs_inode(struct inode *node, char *devname){
+	struct inode *temp=__alloc_inode(__in_type(sfs_inode));
+	//struct inode *tem2;
+	//return temp->in_ops->vop_mknod(tem2, devname);
+	kprintf("dev inode has done\n\r");
+	//temp->in_info
+	vop_mknod(temp, devname);
+	//TODO: DESTROY INODE
+	
+}
 /*
  * Function table for device inodes.
  */
@@ -155,6 +165,7 @@ static const struct inode_ops dev_node_ops = {
 	.vop_unlink = NULL_VOP_NOTDIR,
 	.vop_lookup = dev_lookup,
 	.vop_lookup_parent = NULL_VOP_NOTDIR,
+	.vop_mknod=dev_make_sfs_inode
 };
 
 #define init_device(x)                                  \
@@ -171,6 +182,8 @@ void dev_init(void)
 	init_device(disk0);
 	/* for Nand flash */
 	init_device(disk1);
+	init_device(bluetooth);
+	init_device(car);
 }
 
 /*

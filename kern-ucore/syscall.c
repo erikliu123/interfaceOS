@@ -216,7 +216,11 @@ sys_mkdir(uint32_t arg[]) {
     const char *path = (const char *)arg[0];
     return sysfile_mkdir(path);
 }
-
+static  uint32_t
+sys_hello(uint32_t arg[]) {
+    kprintf("kernel:hello world");
+    return 0;
+}
 static uint32_t
 sys_link(uint32_t arg[]) {
     const char *path1 = (const char *)arg[0];
@@ -263,6 +267,22 @@ sys_mkfifo(uint32_t arg[]) {
     uint32_t open_flags = (uint32_t)arg[1];
     return sysfile_mkfifo(name, open_flags);
 }
+static uint32_t
+sys_mknod(uint32_t arg[]) {
+    char *fd1 = (char *)arg[0];//多了&!!
+  	
+    return sysfile_mknod(fd1);
+}
+
+static uint32_t
+sys_car(uint32_t arg[]) {
+    int fd1 = (int)arg[0];//PWM
+    int fd2 = (int)arg[1];//DIR
+	//*WRITE_IO(PWM_BASE)=fd1&0xffff;
+	//*WRITE_IO(DIR_BASE)=fd2&0xff;
+    return 0;
+}
+
 
 static uint32_t (*syscalls[])(uint32_t arg[]) = {
     [SYS_exit]              sys_exit,
@@ -302,6 +322,9 @@ static uint32_t (*syscalls[])(uint32_t arg[]) = {
     [SYS_dup]               sys_dup,
     [SYS_pipe]              sys_pipe,
     [SYS_mkfifo]            sys_mkfifo,
+    [SYS_mknod]				sys_mknod,
+    [SYS_hello]             sys_hello,
+    [SYS_car]  				sys_car
 };
 
 #define NUM_SYSCALLS        ((sizeof(syscalls)) / (sizeof(syscalls[0])))

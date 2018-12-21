@@ -29,7 +29,7 @@ static int get_device(char *path, char **subpath, struct inode **node_store)
 			break;
 		}
 	}
-	if (colon < 0 && slash != 0) {
+	if (colon < 0 && slash != 0) {//没有colon,而且第一个不是'/'
 		/* *
 		 * No colon before a slash, so no device name specified, and the slash isn't leading
 		 * or is also absent, so this is a relative path or just a bare filename. Start from
@@ -38,7 +38,7 @@ static int get_device(char *path, char **subpath, struct inode **node_store)
 		*subpath = path;
 		return vfs_get_curdir(node_store);
 	}
-	if (colon > 0) {
+	if (colon > 0) {//存在':'，但不是在第一个
 		/* device:path - get root of device's filesystem */
 		path[colon] = '\0';
 
@@ -55,11 +55,11 @@ static int get_device(char *path, char **subpath, struct inode **node_store)
 	 * :path is a path relative to the root of the current filesystem
 	 * */
 	int ret;
-	if (*path == '/') {
+	if (*path == '/') {//没有':'，但是存在'/'
 		if ((ret = vfs_get_bootfs(node_store)) != 0) {
 			return ret;
 		}
-	} else {
+	} else {////第一个是':'！！
 		assert(*path == ':');
 		struct inode *node;
 		if ((ret = vfs_get_curdir(&node)) != 0) {
@@ -86,11 +86,12 @@ int vfs_lookup(char *path, struct inode **node_store)
 {
 	int ret;
 	struct inode *node;
+	if(find_device(path,node_store)==0) return 0;//在设备中找
 	if ((ret = get_device(path, &path, &node)) != 0) {
 		return ret;
 	}
 	if (*path != '\0') {
-		ret = vop_lookup(node, path, node_store);
+		ret = vop_lookup(node, path, node_store);//递归查找node->sfs
 		vop_ref_dec(node);
 		return ret;
 	}
@@ -107,7 +108,7 @@ int vfs_lookup_parent(char *path, struct inode **node_store, char **endp)
 	}
 	ret =
 	    (*path != '\0') ? vop_lookup_parent(node, path, node_store,
-						endp) : -E_INVAL;
+						endp) : -E_INVAL;//递归查找node->vop_lookup_parent
 	vop_ref_dec(node);
 	return ret;
 }

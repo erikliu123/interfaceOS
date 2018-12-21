@@ -88,6 +88,10 @@ void print_trapframe(struct trapframe *tf)
 }
 //#define DEBUG_INT
 
+/*
+6: serial interrupt
+7: clock interrupt
+7:*/
 static void interrupt_handler(struct trapframe *tf)
 {
 	extern clock_int_handler(void *);
@@ -109,6 +113,9 @@ static void interrupt_handler(struct trapframe *tf)
 				//kprintf("COM1\n");
 				//kprintf("COM1\n\r");
 				serial_int_handler(NULL);
+				break;
+			case 5:
+
 				break;
 //                        case KEYBOARD_IRQ:
 //#ifdef DEBUG_INT
@@ -320,7 +327,7 @@ int do_pgfault(machine_word_t error_code, uintptr_t addr)
 	struct proc_struct *current = pls_read(current);
 
 	int ret = -E_INVAL;
-
+	//kprintf("do_pgfault=%d\n\r",error_code)
 	assert(error_code == 3);
 
 	pte_perm_t perm, nperm;

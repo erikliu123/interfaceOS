@@ -12,6 +12,36 @@
 /* *
  * __alloc_inode - alloc a inode structure and initialize in_type
  * */
+ int add_device_inode(struct inode *node, char *name){
+	int device_index=inode_for_devices->index;
+	if(inode_for_devices->index==MAX_DEVICES){
+		return -E_NOMEM;
+		}
+	else{
+		int len=strlen(name)+1;
+		int copy=(len>MAX_DEVICE_NAME)?MAX_DEVICE_NAME:len;
+		memcpy(&(inode_for_devices->node[device_index]),node,sizeof(struct inode));
+		memcpy(inode_for_devices->name[device_index],name,copy);
+		
+		//kprintf("inode_for_devices %s is %x\n\r",name,&(inode_for_devices->node[device_index]));
+		}
+
+	inode_for_devices->index++;
+	return 0;
+
+}
+
+int find_device(char *path, struct inode **node_store){
+	int device_index=inode_for_devices->index,i=0;
+	for(; i<device_index; ++i){
+		if(strcmp(inode_for_devices->name[i], path)==0){
+			*node_store=&(inode_for_devices->node[i]);
+			return 0;
+		}
+		}
+	return -E_NODEV;
+}
+	
 struct inode *__alloc_inode(int type)
 {
 	struct inode *node;
@@ -25,6 +55,7 @@ struct inode *__alloc_inode(int type)
  * inode_init - initialize a inode structure
  * invoked by vop_init
  * */
+ /* 初始化inode的操作函数， 对应的文件系统*/
 void inode_init(struct inode *node, const struct inode_ops *ops, struct fs *fs)
 {
 	atomic_set(&(node->ref_count), 0);
@@ -63,7 +94,7 @@ int inode_ref_dec(struct inode *node)
 	assert(inode_ref_count(node) > 0);
 	int ref_count, ret;
 	if ((ref_count = atomic_sub_return(&(node->ref_count), 1)) == 0) {
-		if ((ret = vop_reclaim(node)) != 0 && ret != -E_BUSY) {
+		if ((ret = vop_reclaim(node)) != 0 && ret != -E_BUSY) {//node->reclaim
 			kprintf("vfs: warning: vop_reclaim: %e.\n\r", ret);
 		}
 	}

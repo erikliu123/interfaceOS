@@ -15,7 +15,7 @@ struct iobuf *iobuf_init(struct iobuf *iob, void *base, size_t len,
 
 int
 iobuf_move(struct iobuf *iob, void *data, size_t len, bool m2b,
-	   size_t * copiedp)
+	   size_t * copiedp)//write mb2=0:src, dst; read mb2=1:dst,src
 {
 	size_t alen;
 	if ((alen = iob->io_resid) > len) {

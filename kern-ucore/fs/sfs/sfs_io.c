@@ -10,7 +10,7 @@ static int
 sfs_rwblock_nolock(struct sfs_fs *sfs, void *buf, uint32_t blkno, bool write,
 		   bool check)
 {
-	assert((blkno != 0 || !check) && blkno < sfs->super.blocks);
+	assert((blkno != 0 || !check) && blkno < sfs->super.blocks);//BLOCK NUM合法
 	struct iobuf __iob, *iob =
 	    iobuf_init(&__iob, buf, SFS_BLKSIZE, blkno * SFS_BLKSIZE);
 	return dop_io(sfs->dev, iob, write);
@@ -93,7 +93,7 @@ int sfs_sync_super(struct sfs_fs *sfs)
 	int ret;
 	lock_sfs_io(sfs);
 	{
-		memset(sfs->sfs_buffer, 0, SFS_BLKSIZE);
+		memset(sfs->sfs_buffer, 0, SFS_BLKSIZE);//128MB
 		memcpy(sfs->sfs_buffer, &(sfs->super), sizeof(sfs->super));
 		ret =
 		    sfs_rwblock_nolock(sfs, sfs->sfs_buffer, SFS_BLKN_SUPER, 1,

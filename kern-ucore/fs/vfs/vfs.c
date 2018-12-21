@@ -24,6 +24,7 @@ struct fs *__alloc_fs(int type)
 void vfs_init(void)
 {
 	sem_init(&bootfs_sem, 1);
+	
 	vfs_devlist_init();
 	file_system_type_list_init();
 }

@@ -29,7 +29,7 @@
 #define SFS_TYPE_FILE                               1
 #define SFS_TYPE_DIR                                2
 #define SFS_TYPE_LINK                               3
-
+#define SFS_TYPE_DEVICE								4
 /*
  * On-disk superblock
  */
@@ -50,11 +50,14 @@ struct sfs_disk_inode {
 			uint32_t slots;	/* # of entries in this directory */
 			uint32_t parent;	/* parent inode number */
 		} dirinfo;
+		struct{
+			
+		}deviceinfo;
 	};
 	uint16_t type;		/* one of SYS_TYPE_* above */
 	uint16_t nlinks;	/* # of hard links to this file */
 	uint32_t blocks;	/* # of blocks */
-	uint32_t direct[SFS_NDIRECT];	/* direct blocks */
+	uint32_t direct[SFS_NDIRECT];	/* direct blocks，数据块block number */
 	uint32_t indirect;	/* indirect blocks */
 	uint32_t db_indirect;	/* double indirect blocks */
 };
@@ -68,7 +71,7 @@ struct sfs_disk_entry {
 #define sfs_dentry_size                             \
     sizeof(((struct sfs_disk_entry *)0)->name)
 
-/* inode for sfs */
+/* inode for sfs,in memory*/
 struct sfs_inode {
 	struct sfs_disk_inode *din;	/* on-disk inode */
 	uint32_t ino;		/* inode number */

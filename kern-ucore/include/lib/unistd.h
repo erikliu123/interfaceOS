@@ -50,6 +50,10 @@
 #define SYS_dup             130
 #define SYS_pipe            140
 #define SYS_mkfifo          141
+#define SYS_mknod           142
+
+#define SYS_hello           145
+#define SYS_car          	146
 
 #define SYS_mount           153
 #define SYS_umount			154

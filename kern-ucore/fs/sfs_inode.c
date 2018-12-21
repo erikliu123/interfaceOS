@@ -15,6 +15,8 @@
 
 static const struct inode_ops sfs_node_dirops;
 static const struct inode_ops sfs_node_fileops;
+static const struct inode_ops sfs_node_devops;
+int sfs_mknod(struct inode *node, const char *devname);//假设进来的inode是root inode
 
 static inline int trylock_sin(struct sfs_inode *sin)
 {
@@ -40,8 +42,10 @@ static const struct inode_ops *sfs_get_ops(uint16_t type)
 		return &sfs_node_dirops;
 	case SFS_TYPE_FILE:
 		return &sfs_node_fileops;
+	case SFS_TYPE_DEVICE:
+		return &sfs_node_devops;
 	}
-	panic("invalid file type %d.\n\r", type);
+	panic("invalid file type %d.\n", type);
 }
 
 static list_entry_t *sfs_hash_list(struct sfs_fs *sfs, uint32_t ino)
@@ -66,7 +70,7 @@ static bool sfs_block_inuse(struct sfs_fs *sfs, uint32_t ino)
 	if (ino != 0 && ino < sfs->super.blocks) {
 		return !bitmap_test(sfs->freemap, ino);
 	}
-	panic("sfs_block_inuse: called out of range (0, %u) %u.\n\r",
+	panic("sfs_block_inuse: called out of range (0, %u) %u.\n",
 	      sfs->super.blocks, ino);
 }
 
@@ -453,7 +457,7 @@ sfs_dirent_unlink_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, int slot,
     ({                                                                              \
         int err;                                                                    \
         if ((err = sfs_dirent_link_nolock(sfs, sin, slot, lnksin, name)) != 0) {    \
-            warn("sfs_dirent_link error: %e.\n\r", err);                              \
+            warn("sfs_dirent_link error: %e.\n", err);                              \
         }                                                                           \
         err;                                                                        \
     })
@@ -462,7 +466,7 @@ sfs_dirent_unlink_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, int slot,
     ({                                                                              \
         int err;                                                                    \
         if ((err = sfs_dirent_unlink_nolock(sfs, sin, slot, lnksin)) != 0) {        \
-            warn("sfs_dirent_unlink error: %e.\n\r", err);                            \
+            warn("sfs_dirent_unlink error: %e.\n", err);                            \
         }                                                                           \
         err;                                                                        \
     })
@@ -488,7 +492,7 @@ sfs_dirent_search_nolock(struct sfs_fs *sfs, struct sfs_inode *sin,
 			set_pvalue(empty_slot, i);
 			continue;
 		}
-		if (strcmp(name, entry->name) == 0) {
+		if (strcmp(name, entry->name) == 0) {//知道目录项
 			set_pvalue(slot, i);
 			set_pvalue(ino_store, entry->ino);
 			goto out;
@@ -1109,7 +1113,7 @@ out:
 	return ret;
 }
 
-static int sfs_reclaim(struct inode *node)
+static int sfs_reclaim(struct inode *node)//从内存里面移走inode
 {
 	struct sfs_fs *sfs = fsop_info(vop_fs(node), sfs);
 	struct sfs_inode *sin = vop_info(node, sfs_inode);
@@ -1117,7 +1121,7 @@ static int sfs_reclaim(struct inode *node)
 	lock_sfs_fs(sfs);
 
 	int ret = -E_BUSY;
-	assert(sin->reclaim_count > 0);
+	assert(sin->reclaim_count > 0);//reclaim_count=1
 	if ((--sin->reclaim_count) != 0) {
 		goto failed_unlock;
 	}
@@ -1172,9 +1176,11 @@ static int sfs_gettype(struct inode *node, uint32_t * type_store)
 		return 0;
 	case SFS_TYPE_LINK:
 		*type_store = S_IFLNK;
+	/*case SFS_TYPE_DEVICE:
+		*type_store=S_IF*/
 		return 0;
 	}
-	panic("invalid file type %d.\n\r", din->type);
+	panic("invalid file type %d.\n", din->type);
 }
 
 static int sfs_tryseek(struct inode *node, off_t pos)
@@ -1245,7 +1251,7 @@ sfs_create_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, const char *name,
 	struct inode *link_node;
 	if ((ret =
 	     sfs_dirent_search_nolock(sfs, sin, name, &ino, NULL,
-				      &slot)) != -E_NOENT) {
+				      &slot)) != -E_NOENT) {//已经有了该目录项
 		if (ret != 0) {
 			return ret;
 		}
@@ -1419,6 +1425,41 @@ next:
 	*node_store = node;
 	return 0;
 }
+static int
+sfs_mkdir_nolock2(struct sfs_fs *sfs, struct sfs_inode *sin, const char *name, struct inode **res)
+{
+	int ret, slot;
+	if ((ret =
+	     sfs_dirent_search_nolock(sfs, sin, name, NULL, NULL,
+				      &slot)) != -E_NOENT) {
+		return (ret != 0) ? ret : -E_EXISTS;
+	}
+	struct inode *link_node;
+	if ((ret = sfs_dirent_create_inode(sfs, SFS_TYPE_DIR, &link_node)) != 0) {
+		kprintf("sfs_dirent_create_inode has RUN OUT OF SPACE");
+		return ret;
+	}
+	struct sfs_inode *lnksin = vop_info(link_node, sfs_inode);
+	if ((ret = sfs_dirent_link_nolock(sfs, sin, slot, lnksin, name)) != 0) {
+		assert(lnksin->din->nlinks == 0);
+		assert(inode_ref_count(link_node) == 1
+		       && inode_open_count(link_node) == 0);
+		goto out;
+	}
+	*res=link_node;
+	/* set parent */
+	sfs_dirinfo_set_parent(lnksin, sin);
+
+	/* add '.' link to itself */
+	sfs_nlinks_inc_nolock(lnksin);
+
+	/* add '..' link to parent */
+	sfs_nlinks_inc_nolock(sin);
+
+out:
+	vop_ref_dec(link_node);
+	return ret;
+}
 
 static int
 sfs_lookup_parent(struct inode *node, char *path, struct inode **node_store,
@@ -1489,6 +1530,7 @@ static const struct inode_ops sfs_node_dirops = {
 	.vop_unlink = sfs_unlink,
 	.vop_lookup = sfs_lookup,
 	.vop_lookup_parent = sfs_lookup_parent,
+	.vop_mknod = sfs_mknod
 };
 
 static const struct inode_ops sfs_node_fileops = {
@@ -1515,4 +1557,205 @@ static const struct inode_ops sfs_node_fileops = {
 	.vop_unlink = NULL_VOP_NOTDIR,
 	.vop_lookup = NULL_VOP_NOTDIR,
 	.vop_lookup_parent = NULL_VOP_NOTDIR,
+	.vop_mknod = sfs_mknod
 };
+
+static int sfs_open_dev(struct inode *node, uint32_t open_flags)
+{
+	return node->in_info.__device_info.d_open(&(node->in_info.__device_info),open_flags);
+}
+
+static int sfs_close_dev(struct inode *node)
+{
+	//return vop_fsync(node);
+	return node->in_info.__device_info.d_close(&(node->in_info.__device_info));
+}
+
+static inline int sfs_dev_io(struct inode *node, struct iobuf *iob, bool write)
+{
+	
+	return node->in_info.__device_info.d_io(&(node->in_info.__device_info),iob,write);//和device驱动函数耦合起来了
+}
+
+static int sfs_read_dev(struct inode *node, struct iobuf *iob)
+{
+	return sfs_dev_io(node, iob, 0);
+}
+
+static int sfs_write_dev(struct inode *node, struct iobuf *iob)
+{
+	return sfs_dev_io(node, iob, 1);
+}
+
+static int sfs_fstat_dev(struct inode *node, struct stat *stat)//DON'T CARE 
+{
+	int ret;
+	kprintf("sfs fstat dev is called\n\r");
+	memset(stat, 0, sizeof(struct stat));
+	if ((ret = vop_gettype(node, &(stat->st_mode))) != 0) {
+		return ret;
+	}
+	struct sfs_disk_inode *din = vop_info(node, sfs_inode)->din;
+	stat->st_nlinks = din->nlinks;
+	stat->st_blocks = din->blocks;
+	stat->st_size = 0;
+	return 0;
+}
+
+static int sfs_gettype_dev(struct inode *node, uint32_t * type_store)
+{
+		return 0;
+}
+
+static int sfs_tryseek_dev(struct inode *node, off_t pos)
+{
+	if (pos < 0 || pos >= SFS_MAX_FILE_SIZE) {
+		return -E_INVAL;
+	}
+	struct sfs_disk_inode *din = vop_info(node, sfs_inode)->din;
+	if (pos > din->fileinfo.size) {
+		return vop_truncate(node, pos);
+	}
+	return 0;
+}
+//mainly coped from sfs_mkdir_nolock
+static int
+sfs_mknod_nolock(struct sfs_fs *sfs, struct sfs_inode *sin, const char *name, struct inode **res)
+{
+	int ret, slot;
+	if ((ret =
+	     sfs_dirent_search_nolock(sfs, sin, name, NULL, NULL,
+				      &slot)) != -E_NOENT) {
+		return (ret != 0) ? ret : -E_EXISTS;
+	}
+	struct inode *link_node;
+	if ((ret = sfs_dirent_create_inode(sfs, SFS_TYPE_DEVICE, &link_node)) != 0) {//
+		return ret;
+	}
+	struct sfs_inode *lnksin = vop_info(link_node, sfs_inode);
+	if ((ret = sfs_dirent_link_nolock(sfs, sin, slot, lnksin, name)) != 0) {
+		assert(lnksin->din->nlinks == 0);
+		assert(inode_ref_count(link_node) == 1
+		       && inode_open_count(link_node) == 0);
+		goto out;
+	}
+	*res=link_node;
+	/* set parent */
+	sfs_dirinfo_set_parent(lnksin, sin);
+
+	/* add '.' link to itself */
+	sfs_nlinks_inc_nolock(lnksin);
+
+	/* add '..' link to parent */
+	sfs_nlinks_inc_nolock(sin);
+
+out:
+	vop_ref_dec(link_node);
+	return ret;
+}
+
+static int sfs_lookup_dev(struct inode *node, char *path, struct inode **node_store)
+{
+	struct sfs_fs *sfs = fsop_info(vop_fs(node), sfs);
+	assert(*path != '\0' && *path != '/');
+	vop_ref_inc(node);
+	do {
+		struct sfs_inode *sin = vop_info(node, sfs_inode);
+		if (sin->din->type != SFS_TYPE_DEVICE) {
+			vop_ref_dec(node);
+			return -E_NOTDIR;
+		}
+
+		char *subpath;
+next:
+		subpath = sfs_lookup_subpath(path);
+		if (strcmp(path, ".") == 0) {
+			if ((path = subpath) != NULL) {
+				goto next;
+			}
+			break;
+		}
+
+		int ret;
+		struct inode *subnode;
+		if (strcmp(path, "..") == 0) {
+			ret = sfs_load_parent(sfs, sin, &subnode);
+		} else {
+			if (strlen(path) > SFS_MAX_FNAME_LEN) {
+				vop_ref_dec(node);
+				return -E_TOO_BIG;
+			}
+			ret = sfs_lookup_once(sfs, sin, path, &subnode, NULL);
+		}
+
+		vop_ref_dec(node);
+		if (ret != 0) {
+			return ret;
+		}
+		node = subnode, path = subpath;
+	} while (path != NULL);
+	*node_store = node;
+	return 0;
+}
+
+int sfs_mknod(struct inode *node,const char *devname){//假设进来的inode是root inode
+	struct inode *devnode,*dev_dentry,*dev_subdentry,*root,*des;
+	/*if (check_devname_conflict(devname)) {
+		return -E_NODEV;
+		
+	}*/
+	kprintf("sfs_mod is doing\n");
+	int ret=vfs_get_root(devname, &node);//dev->mountable需要为0,才能找到设备对应的inode
+	kprintf("get device, node=%x, type=%x ret=%d\n",node,node->in_type,ret);
+	if(ret<0) return ret;
+	vfs_get_root("disk0", &root);//找到SFS的根结点root inode
+	assert(ret==0);
+	struct sfs_fs *sfs = fsop_info(vop_fs(node), sfs);
+	struct sfs_inode *sin;
+	uint32_t ino_store,slot,empty_slot;
+	//get_device(buf,&p,&root);//得到根inode
+	
+	if(sfs_mkdir_nolock2(sfs, vop_info(root, sfs_inode), "devs", &dev_dentry)==-E_NOMEM){// 创建 /dev 目录, 得到dev_dentry
+		kprintf("not enough memory");
+	//return  -E_NOMEM;
+	}
+	/*找到dev对应的inode,inode_store*/
+	//sfs_dirent_create_inode(sfs, uint16_t type, struct inode * * node_store)
+	//ret=sfs_dirent_search_nolock(sfs, vop_info(root, sfs_inode),"dev", &ino_store, &slot, &empty_slot);
+	if((ret=sfs_mknod_nolock(sfs, vop_info(dev_dentry, sfs_inode), devname, &des))<0){
+		kprintf("sfs_mknod_nolock has sth wrong\n");
+		return ret;
+		}
+	des->in_info=node->in_info;//把device信息copy到des中;
+	return 0;
+	//ret=sfs_dirent_search_nolock(sfs, vop_info(node, sfs_inode),"dev", &ino_store, &slot, &empty_slot);
+}
+
+//TODO:
+static const struct inode_ops sfs_node_devops = {
+	.vop_magic = VOP_MAGIC,
+	.vop_open = sfs_open_dev,
+	.vop_close = sfs_close_dev,
+	.vop_read = sfs_read_dev,
+	.vop_write = sfs_write_dev,
+	.vop_fstat = sfs_fstat_dev,
+	.vop_fsync = NULL_VOP_NOTDIR,
+	.vop_mkdir = NULL_VOP_NOTDIR,
+	.vop_link = NULL_VOP_NOTDIR,
+	.vop_rename = NULL_VOP_NOTDIR,
+	.vop_readlink = NULL_VOP_NOTDIR,
+	.vop_symlink = NULL_VOP_NOTDIR,
+	.vop_namefile = NULL_VOP_NOTDIR,
+	.vop_getdirentry = NULL_VOP_NOTDIR,
+	.vop_reclaim = NULL_VOP_NOTDIR,
+	.vop_ioctl = NULL_VOP_INVAL,
+	.vop_gettype = sfs_gettype_dev,
+	.vop_tryseek = sfs_tryseek_dev,
+	.vop_truncate = NULL_VOP_NOTDIR,
+	.vop_create = NULL_VOP_NOTDIR,
+	.vop_unlink = NULL_VOP_NOTDIR,
+	.vop_lookup =  sfs_lookup_dev,
+	.vop_lookup_parent = NULL_VOP_NOTDIR,
+	.vop_mknod = sfs_mknod
+};
+

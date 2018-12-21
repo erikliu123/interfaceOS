@@ -15,6 +15,8 @@ void fs_init(void)
 	dev_init();
 	pipe_init();
 	sfs_init();
+	inode_for_devices=(struct dev_inode_mm *)kmalloc(sizeof(struct dev_inode_mm));
+	inode_for_devices->index=0;
 }
 
 void fs_cleanup(void)

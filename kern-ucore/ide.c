@@ -34,7 +34,7 @@ void ide_init(void)
 	int devno = DISK0_DEV_NO;
 	assert(devno < MAX_IDE);
 	ramdisk_init_struct(&ide_devices[devno]);
-	if (CHECK_CALL(devno, init))
+	if (CHECK_CALL(devno, init)) //判断有无init函数,有的话调用 
 		ide_devices[devno].init(&ide_devices[devno]);
 
 }

@@ -22,9 +22,9 @@ struct ide_device {
 	void (*init) (struct ide_device * dev);
 	/* return 0 if succeed */
 	int (*read_secs) (struct ide_device * dev, size_t secno, void *dst,
-			  size_t nsecs);
+			  size_t nsecs);//ramdisk_read
 	int (*write_secs) (struct ide_device * dev, size_t secno,
-			   const void *src, size_t nsecs);
+			   const void *src, size_t nsecs);//ramdisk_write
 
 };
 

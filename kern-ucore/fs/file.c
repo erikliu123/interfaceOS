@@ -34,7 +34,7 @@ void filemap_init(struct file *filemap)
 static int filemap_alloc(int fd, struct file **file_store)
 {
 	struct file *file = get_filemap();
-	if (fd == NO_FD) {
+	if (fd == NO_FD) {//file open默认走这条路
 		for (fd = 0; fd < FS_STRUCT_NENTRY; fd++, file++) {
 			if (file->status == FD_NONE) {
 				goto found;
@@ -47,9 +47,9 @@ static int filemap_alloc(int fd, struct file **file_store)
 			if (file->status == FD_NONE) {
 				goto found;
 			}
-			return -E_BUSY;
+			return -E_BUSY;//说明在init,open状态
 		}
-		return -E_INVAL;
+		return -E_INVAL;//fd非法
 	}
 found:
 	assert(fopen_count(file) == 0);
@@ -83,7 +83,7 @@ void filemap_release(struct file *file)
 	}
 }
 
-void filemap_open(struct file *file)
+void filemap_open(struct file *file)//（文件初始化或者文件已打开）并且inode不是空
 {
 	assert((file->status == FD_INIT || file->status == FD_OPENED)
 	       && file->node != NULL);
@@ -124,6 +124,7 @@ void filemap_dup_close(struct file *to, struct file *from)
 	to->node = node;
 }
 
+/*	文件打开则返回0，get_filemap返回的是当前线程的fs_struct的filemap	*/
 static inline int fd2file(int fd, struct file **file_store)
 {
 	if (testfd(fd)) {
@@ -171,28 +172,36 @@ int file_open(char *path, uint32_t open_flags)
 
 	int ret;
 	struct file *file;
-	if ((ret = filemap_alloc(NO_FD, &file)) != 0) {
+	if ((ret = filemap_alloc(NO_FD, &file)) != 0) {//在当前进程中还可以分配文件，则返回0；其他则为错误
 		return ret;
 	}
 
 	struct inode *node;
-	if ((ret = vfs_open(path, open_flags, &node)) != 0) {
+	if ((ret = vfs_open(path, open_flags, &node)) != 0) {//获取inode的值
 		filemap_free(file);
 		return ret;
 	}
-
+	
 	file->pos = 0;
 	if (open_flags & O_APPEND) {
 		struct stat __stat, *stat = &__stat;
-		if ((ret = vop_fstat(node, stat)) != 0) {
+		if ((ret = vop_fstat(node, stat)) != 0) {//inode->vop_fstat()
 			vfs_close(node);
 			filemap_free(file);
 			return ret;
 		}
-		file->pos = stat->st_size;
+		file->pos = stat->st_size;//APPEND将文件偏移设置成文件的大小
 	}
-
+	/*
+	if(node->has_dev) file->node = node->dev_inode;
+	else file->node = node;
+	*/
 	file->node = node;
+	if(node->in_type==__in_type(device)){
+		//kprintf("THE DEVICE IS FOUND pos=%d \n\r",file->pos);
+		
+	}
+	//kprintf("node=%x,   dev_node=%x\n\r",node,node->dev_inode);
 	file->readable = readable;
 	file->writable = writable;
 	filemap_open(file);
@@ -311,12 +320,12 @@ int file_fsync(int fd)
 {
 	int ret;
 	struct file *file;
-	if ((ret = fd2file(fd, &file)) != 0) {
+	if ((ret = fd2file(fd, &file)) != 0) {//线程对应的fs_struct
 		return ret;
 	}
-	filemap_acquire(file);
+	filemap_acquire(file);//增加文件的计数
 	ret = vop_fsync(file->node);
-	filemap_release(file);
+	filemap_release(file);//释放文件的计数，=0时：free该file对象
 	return ret;
 }
 
@@ -462,7 +471,8 @@ int linux_devfile_read(int fd, void *base, size_t len, size_t * copied_store)
 	offset = file->pos;
 	struct device *dev = vop_info(file->node, device);
 	assert(dev);
-	ret = dev->d_linux_read(dev, base, len, (size_t *) & offset);
+	kprintf("linux_devfile_read is called");
+	ret = dev->d_linux_read(dev, base, len, (size_t *) & offset);//disk0无
 	if (ret >= 0) {
 		*copied_store = (size_t) ret;
 		file->pos += ret;

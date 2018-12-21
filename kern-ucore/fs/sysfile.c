@@ -41,7 +41,8 @@ int sysfile_open(const char *__path, uint32_t open_flags)
 	if ((ret = copy_path(&path, __path)) != 0) {
 		return ret;
 	}
-	ret = file_open(path, open_flags);
+	ret = file_open(path, open_flags);//打开文件，返回一个FD描述符
+	
 	kfree(path);
 	return ret;
 }
@@ -57,11 +58,11 @@ int sysfile_read(int fd, void *base, size_t len)
 	if (len == 0) {
 		return 0;
 	}
-	if (!file_testfd(fd, 1, 0)) {
+	if (!file_testfd(fd, 1, 0)) {/*检查文件的读写权限*/
 		return -E_INVAL;
 	}
 	/* for linux inode */
-	if (__is_linux_devfile(fd)) {
+	if (__is_linux_devfile(fd)) {//设备文件，需要有linux_dentry函数
 		size_t alen = 0;
 		ret = linux_devfile_read(fd, base, len, &alen);
 		if (ret)
@@ -78,7 +79,7 @@ int sysfile_read(int fd, void *base, size_t len)
 		if ((alen = IOBUF_SIZE) > len) {
 			alen = len;
 		}
-		ret = file_read(fd, buffer, alen, &alen);
+		ret = file_read(fd, buffer, alen, &alen);//inode->read
 		if (alen != 0) {
 			
 			{
@@ -313,7 +314,16 @@ int sysfile_chdir(const char *__path)
 	kfree(path);
 	return ret;
 }
-
+int sysfile_mknod(const char *devname){
+	char *path;
+	int ret;
+	if ((ret = copy_path(&path, devname)) != 0) {
+		return ret;
+	}
+	ret = vfs_mknod(path);
+	kfree(path);
+	return ret;
+}
 int sysfile_mkdir(const char *__path)
 {
 	int ret;
