@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "gdb",
+            "request": "attach",
+            "executable": "${workspaceRoot}/obj/kernel/ucore-kernel-initrd",
+            "target": ":3333",
+            "remote": true,
+            "cwd": "${workspaceRoot}",
+            "gdbpath": "E:/senior/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF/bin/mips-sde-elf-gdb.exe",
+            "autorun": [
+                "set endian little",
+                "monitor reset halt",
+                "b *0x9fc01200",
+                "continue",
+                "delete 1",
+                "load"
+               // "b sfs_inode.c:1767"
+              
+            ]
+        },
+        {
+            "name": "(gdb) Launch",
+            //"preLaunchTask": "build",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/obj/kernel/ucore-kernel-initrd",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "targetArchitecture": "mips", 
+            "miDebuggerPath": "E:\\senior\\CodeSourcery\\Sourcery_CodeBench_Lite_for_MIPS_ELF\\bin\\mips-sde-elf-gdb.exe", // GDB的路径，注意替换成自己的路径
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

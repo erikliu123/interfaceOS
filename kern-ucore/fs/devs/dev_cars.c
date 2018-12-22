@@ -16,6 +16,7 @@ static int usrs=0;
 static int rxData;
 #define PWM_BASE        0xB0700000
 #define DIR_BASE        0xB0800000
+
 void dev_init_car(void)
 {
 	struct inode *node;

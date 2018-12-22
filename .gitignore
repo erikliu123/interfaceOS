@@ -3,11 +3,9 @@
 
 # do NOT ignore this file
 !.gitignore
-
 # build directories
 obj
 build-*
-
 # cscope files
 cscope.*
 ncscope.*
@@ -26,7 +24,6 @@ src/user-ucore/_initial
 *.log
 *.jou
 .Xil/
-
 # other
 *.backup
 *.txt
